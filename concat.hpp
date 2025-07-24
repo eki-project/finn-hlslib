@@ -92,6 +92,13 @@ namespace {
 		}
 	}
 
+	/** Workaround to catch cases where other types than hls::vector are passed to PackReader */
+	template<typename TI, typename TO>
+	void convert_vector(TI &src, TO &dst) {
+		dst = src;
+	}
+	
+
 	/** Recursive selector for reading from stream with represented index. */
 	template<unsigned  IDX, typename... TI>
 	class PackReader {};
