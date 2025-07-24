@@ -78,11 +78,12 @@ class AnnotatedMultiplex {
             if (S == MultiplexStrategy::ROUND_ROBIN || S == MultiplexStrategy::ROUND_ROBIN_BLOCKING) {
                 bool can_read = false;
                 unsigned int count = 0;
+                TO content;
                 while(!can_read) {
                     can_read = reader.read_nb(sel, content, src...);
 
                     // If we arent blocking, move on regardless of whether the read was successful
-                    if (S == MultiplexStrategy:ROUND_ROBIN) {
+                    if (S == MultiplexStrategy::ROUND_ROBIN) {
                         sel = (sel + 1) % N;
                         count++;
                     }
