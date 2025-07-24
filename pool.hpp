@@ -205,7 +205,7 @@ public:
 template <typename TA, typename TO, unsigned size, unsigned KernelSize>
 class QuantAvgPoolFunction : public PoolFunction<TA, TO, size>
 {
-  constexpr unsigned KernelSizeSquare = KernelSize*KernelSize;
+  static_assert(KernelSize > 0, "KernelSize must be greater than 0");
 public:
 /*!
  * \brief pool: computes the sum 
@@ -224,8 +224,8 @@ public:
 */    
   TO activate(TA const &accu) const {
 #pragma HLS inline
-    accu/= KernelSizeSquare; // Devision of AvgPool
-    return  TO(accu>>size); // Right shift of Trunc Node
+    TA tmp_accu = accu / TA(KernelSize); // Devision of AvgPool
+    return  TO(tmp_accu >> size); // Right shift of Trunc Node
   }
 };
 
