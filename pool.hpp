@@ -122,6 +122,43 @@ T init(void) const {
 };
 
 /*!
+ * \brief AccPoolFunction: Implementing accumulation pool
+ *
+ * This class inherits from the generic Poolfunction to implement accumulation Pool
+ *
+ * \tparam TA Datatype of the internal accumulation in the avg pool function
+
+ * \tparam size Unused
+ *
+ */
+template <typename TA, unsigned size>
+class AccPoolFunction : public PoolFunction<TA, TA, size>
+{
+public:
+  /*!
+   * \brief pool: computes the sum
+   *
+   * \param input Input value to be used in the avg pool function
+   * \param accu  Accumulation value already computed in previous iterations
+   */
+  TA pool(TA const &input, TA const &accu) const
+  {
+#pragma HLS inline
+    return comp::add<TA, TA, TA>()(input, accu);
+  }
+  /*!
+   * \brief activate: compute the output of the max pooling algorithm
+   *
+   * \param accu Accumulation value already computed in previous iterations
+   */
+  TA activate(TA const &accu) const
+  {
+#pragma HLS inline
+    return accu;
+  }
+};
+
+/*!
  * \brief AvgPoolFunction: Implementing avg pool 
  *
  * This class inherits from the generic Poolfunction to implement Average Pool
@@ -131,19 +168,10 @@ T init(void) const {
  * \tparam size Value used as divisor on the accumulator to generate output 
  *
  */
-template<typename TA, typename TO, unsigned size>
-class AvgPoolFunction : public PoolFunction<TA, TO, size> {
+template <typename TA, typename TO, unsigned size>
+class AvgPoolFunction : public AccPoolFunction<TA, size>
+{
 public:
-/*!
- * \brief pool: computes the sum 
- *
- * \param input Input value to be used in the avg pool function 
- * \param accu  Accumulation value already computed in previous iterations
-*/
-  TA pool(TA const &input, TA const &accu) const{
-#pragma HLS inline
-    return comp::add<TA, TA, TA>()(input,accu);
-  }
 /*!
  * \brief activate: compute the output of the avg pooling algorithm
  *
@@ -151,41 +179,7 @@ public:
 */    
   TO activate(TA const &accu) const {
 #pragma HLS inline
-    return  (accu/size);
-  }
-};
-
-/*!
- * \brief AccPoolFunction: Implementing accumulation pool 
- *
- * This class inherits from the generic Poolfunction to implement accumulation Pool
- * 
- * \tparam TA Datatype of the internal accumulation in the avg pool function
-
- * \tparam size Unused 
- *
- */
-template<typename TA, unsigned size>
-class AccPoolFunction : public PoolFunction<TA, TA, size> {
-public:
-/*!
- * \brief pool: computes the sum 
- *
- * \param input Input value to be used in the avg pool function 
- * \param accu  Accumulation value already computed in previous iterations
-*/
-  TA pool(TA const &input, TA const &accu) const{
-#pragma HLS inline
-    return comp::add<TA, TA, TA>()(input,accu);
-  }
-/*!
- * \brief activate: compute the output of the max pooling algorithm
- *
- * \param accu Accumulation value already computed in previous iterations 
-*/   
-  TA activate(TA const &accu) const {
-#pragma HLS inline
-    return  accu;
+    return (accu / size);
   }
 };
 
@@ -214,7 +208,7 @@ public:
 */    
   TO activate(TA const &accu) const {
 #pragma HLS inline
-    return TO(AvgPoolFunction<TA, TO, size>::activate(accu) >> size); // Right shift of Trunc Node
+    return TO(AvgPoolFunction<TA, TO, KernelSize>::activate(accu) >> size); // Right shift of Trunc Node
   }
 };
 
