@@ -203,20 +203,10 @@ public:
  *
  */
 template <typename TA, typename TO, unsigned size, unsigned KernelSize>
-class QuantAvgPoolFunction : public PoolFunction<TA, TO, size>
+class QuantAvgPoolFunction : public AvgPoolFunction<TA, TO, KernelSize>
 {
   static_assert(KernelSize > 0, "KernelSize must be greater than 0");
 public:
-/*!
- * \brief pool: computes the sum 
- *
- * \param input Input value to be used in the avg pool function 
- * \param accu  Accumulation value already computed in previous iterations
-*/
-  TA pool(TA const &input, TA const &accu) const{
-#pragma HLS inline
-    return comp::add<TA, TA, TA>()(input, accu);
-  }
 /*!
  * \brief activate: compute the output of the quant avg pooling algorithm
  *
@@ -224,8 +214,7 @@ public:
 */    
   TO activate(TA const &accu) const {
 #pragma HLS inline
-    TA tmp_accu = accu / TA(KernelSize); // Devision of AvgPool
-    return  TO(tmp_accu >> size); // Right shift of Trunc Node
+    return TO(AvgPoolFunction<TA, TO, size>::activate(accu) >> size); // Right shift of Trunc Node
   }
 };
 
