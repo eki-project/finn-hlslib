@@ -4,12 +4,20 @@
 // Use existing functionality from PackReader
 #include "concat.hpp"
 
+// Use existing functionality from PackWriter
+#include "split.hpp"
+
 enum class MultiplexStrategy {
     ROUND_ROBIN,
     ROUND_ROBIN_BLOCKING,
     LOAD_BALANCE,
     PRIORITY_LIST
 };
+
+
+// TODO: Currently inefficiently implemented, since every frame needs twice the frames now. Can be
+// improved via bit exact packing
+
 
 /**
  * Provide kernels to multiplex data on some strategy with additional information provided.
@@ -55,8 +63,8 @@ class AnnotatedMultiplex {
         /** Actual implementation of the streamed annotated multiplex */
         template <typename TO, MultiplexStrategy S, size_t OUT_WIDTH, typename... TI>
         static void StreamingAnnotatedMultiplex_impl(hls::stream<TO> &dst, hls::stream<TI> &...src) {
-            constexpr unsigned int header_width = clog2(sizeof...(src));
             constexpr unsigned int N = sizeof...(TI);
+            constexpr unsigned int header_width = clog2(N);
             static_assert(OUT_WIDTH >= header_width, "The output datawidth must be wide enough to represent the ID of every channel!");
 
             // TODO: Remove
@@ -94,6 +102,56 @@ class AnnotatedMultiplex {
                         return;
                     }
                 }
+            }
+        }
+};
+
+/**
+ * Demux data coming from a stream that is written to by a AnnotatedMultiplex kernel
+ */
+class AnnotatedDemultiplex {
+    public:
+        /**
+         * \brief Demultiplex based on the source stream ID of the src stream.
+         * 
+         * \tparam W The width of the incoming datatype
+         * \tparam ...TO The output datatypes
+         * \param src The incoming hls stream that is supplied by an AnnotatedMultiplex kernel
+         * \param ...dst The destination streams to demultiplex to. 
+         */
+        template <size_t W, typename ...TO >
+        static void StreamingNetworkDeMultiplex(hls::stream<ap_uint<W>> &src, hls::stream<TO> &...dst) {
+            // ap_uint public method
+            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_uint<W>, TO..., W>(src, dst...);
+        }
+
+        /**
+         * \brief Demultiplex based on the source stream ID of the src stream.
+         * 
+         * \tparam W The width of the incoming datatype
+         * \tparam ...TO The output datatypes
+         * \param src The incoming hls stream that is supplied by an AnnotatedMultiplex kernel
+         * \param ...dst The destination streams to demultiplex to. 
+         */
+        template <size_t W, typename ...TO >
+        static void StreamingNetworkDeMultiplex(hls::stream<ap_int<W>> &src, hls::stream<TO> &...dst) {
+            // ap_int public method
+            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_int<W>, TO..., W>(src, dst...);
+        }
+
+    private:
+        /** Actual implementation of the streamed annotated demultiplex */
+        template<typename TI, typename ...TO, size_t IN_WIDTH>
+        static void StreamingAnnotatedDeMultiplex_impl(hls::stream<TI> &src, hls::stream<TO> &...dst) {
+            constexpr unsigned int N = sizeof...(dst);
+            constexpr unsigned int header_width = clog2(N);
+            static_assert(header_width <= IN_WIDTH, "Cannot demultiplex. Too many streams to identify with the given incoming bitwidth!");
+            static PackWriter<0, TO...> writer;
+            TI header;
+            TI content;
+            if (src.read_nb(header)) {
+                content = src.read();
+                writer.write_nb((unsigned int) header, content, dst...);
             }
         }
 };
