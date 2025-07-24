@@ -1,9 +1,12 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 
+// Use existing functionality from PackReader
+#include "concat.hpp"
+
 enum class MultiplexStrategy {
     ROUND_ROBIN,
-    ROUND_ROBIN_FLEXIBLE,
+    ROUND_ROBIN_BLOCKING,
     LOAD_BALANCE,
     PRIORITY_LIST
 };
@@ -57,12 +60,40 @@ class AnnotatedMultiplex {
             static_assert(OUT_WIDTH >= header_width, "The output datawidth must be wide enough to represent the ID of every channel!");
 
             // TODO: Remove
-            static_assert(S == MultiplexStrategy::ROUND_ROBIN, "Other multiplex strategies than RR not supported yet!");
+            static_assert(S == MultiplexStrategy::ROUND_ROBIN || S == MultiplexStrategy::ROUND_ROBIN_BLOCKING, "Other multiplex strategies than RR not supported yet!");
 
             // Gets added to every transmission to identify the original sender
             static ap_uint<OUT_WIDTH> sel = 0;
+            static PackReader<0, TI...> reader;
 
-            // TODO: Implement arbiting logic
-            // Use or subclass from finn-hlslib/concat.hpp/PackReader, since we need very similar functionality
+            // Select next candidate based on the strategy chosen
+            if (S == MultiplexStrategy::ROUND_ROBIN || S == MultiplexStrategy::ROUND_ROBIN_BLOCKING) {
+                bool can_read = false;
+                unsigned int count = 0;
+                while(!can_read) {
+                    can_read = reader.read_nb(sel, content, src...);
+
+                    // If we arent blocking, move on regardless of whether the read was successful
+                    if (S == MultiplexStrategy:ROUND_ROBIN) {
+                        sel = (sel + 1) % N;
+                        count++;
+                    }
+
+                    // Have searched the entire array of input streams and didnt find anything
+                    if (count == N-1) {
+                        return;
+                    }
+
+                    // Write annotated data to dst 
+                    if (can_read) {
+                        dst.write(sel);
+                        dst.write(content);
+                        return;
+                    }
+                    if (S == MultiplexStrategy::ROUND_ROBIN_BLOCKING) {
+                        return;
+                    }
+                }
+            }
         }
 };
