@@ -82,9 +82,8 @@ class AnnotatedMultiplex {
                 while(!can_read) {
                     can_read = reader.read_nb(sel, content, src...);
 
-
                     // Have searched the entire array of input streams and didnt find anything
-                    if (count == N-1) {
+                    if (count == N) {
                         return;
                     }
 
@@ -153,6 +152,6 @@ class AnnotatedDemultiplex {
             if (src.read_nb(header)) {
                 content = src.read();
                 writer.write((unsigned int) header, content, dst...);
-            }
+            } 
         }
 };

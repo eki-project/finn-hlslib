@@ -26,7 +26,7 @@ void Testbench_annotated_mux_rr_complete(hls::stream<T0> &in0, hls::stream<T1> &
 #pragma HLS INTERFACE axis port=out1
 #pragma HLS INTERFACE axis port=out2
 #pragma HLS INTERFACE ap_ctrl_none port=return
-    hls::stream<TO> network;
+    hls::stream<TO> network("tb_network");
     AnnotatedMultiplex::StreamingNetworkMultiplex<MultiplexStrategy::ROUND_ROBIN, TO_WIDTH, T0, T1, T2>(network, in0, in1, in2);
     AnnotatedDemultiplex::StreamingNetworkDeMultiplex<TO_WIDTH, T0, T1, T2>(network, out0, out1, out2); 
 }

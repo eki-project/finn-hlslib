@@ -28,11 +28,11 @@ bool matches_expected(unsigned int iter, unsigned int total_iter, unsigned int s
 int main() {
 	/***************** TEST 1 - Only Mux *****************/
 	std::cout << "\nTEST 1\n-------------\n";
-	hls::stream<T0> t1in0;
-	hls::stream<T1> t1in1;
-	hls::stream<T2> t1in2;
-	hls::stream<TO> t1out;
-	hls::stream<TO> t1expected;
+	hls::stream<T0> t1in0("t1in0");
+	hls::stream<T1> t1in1("t1in1");
+	hls::stream<T2> t1in2("t1in2");
+	hls::stream<TO> t1out("t1out");
+	hls::stream<TO> t1expected("t1expected");
 
 	// First let all inputs have the same availability
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
@@ -78,19 +78,28 @@ int main() {
 			has_error = true;
 		}
 	}
+	if (!t1expected.empty()) {
+		std::cout << "ERROR: Expected stream still has leftover data. Leftover: " << t1expected.size() << std::endl;
+		t1expected.read();
+		has_error = true;
+	}
+	if (!t1out.empty()) {
+		std::cout << "ERROR: Out stream still has leftover data. Leftover: " << t1out.size() << std::endl;
+		has_error = true;
+	}
 	std::cout << "Done.\n";
 
 	/***************** TEST 2 - Complete Pipeline *****************/
 	std::cout << "\nTEST 2\n-------------\n";
-	hls::stream<T0> t2in0;
-	hls::stream<T1> t2in1;
-	hls::stream<T2> t2in2;
-	hls::stream<T0> t2out0;
-	hls::stream<T1> t2out1;
-	hls::stream<T2> t2out2;
-	hls::stream<T0> t2expected0;
-	hls::stream<T1> t2expected1;
-	hls::stream<T2> t2expected2;
+	hls::stream<T0> t2in0("t2in0");
+	hls::stream<T1> t2in1("t2in1");
+	hls::stream<T2> t2in2("t2in2");
+	hls::stream<T0> t2out0("t2out0");
+	hls::stream<T1> t2out1("t2out1");
+	hls::stream<T2> t2out2("t2out2");
+	hls::stream<T0> t2expected0("t2expected0");
+	hls::stream<T1> t2expected1("t2expected1");
+	hls::stream<T2> t2expected2("t2expected2");
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
 		t2in0.write((i+1)*2);	
 		t2in1.write((i+1)*3);	
@@ -111,16 +120,15 @@ int main() {
 	
 	T0 t2out, t2expected;
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		has_error |= matches_expected(i, REP_COUNT, 0, t2out0, t2expected0);
-		has_error |= matches_expected(i, REP_COUNT, 1, t2out1, t2expected1);
-		has_error |= matches_expected(i, REP_COUNT, 2, t2out2, t2expected2);
+		has_error |= !matches_expected(i, REP_COUNT, 0, t2out0, t2expected0);
+		has_error |= !matches_expected(i, REP_COUNT, 1, t2out1, t2expected1);
+		has_error |= !matches_expected(i, REP_COUNT, 2, t2out2, t2expected2);
 	}
 	
 	// Again for the case where only s0 received data
-	std::cout << "Checking extra inputs from stream 0" << std::endl;
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		has_error |= matches_expected(i, REP_COUNT, 0, t2out0, t2expected0);
+		has_error |= !matches_expected(i, REP_COUNT, 0, t2out0, t2expected0);
 	}
-	std::cout << "Done.\n";
+	std::cout << "Done.\n\n";
 	return has_error;
 }
