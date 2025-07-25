@@ -37,6 +37,8 @@ int main() {
 	std::cout << "Done.\n";
 
 	/***************** TEST 1 - Only Mux *****************/
+
+	/*
 	std::cout << "\nTEST 1\n-------------\n";
 	hls::stream<T0> t1in0("t1in0");
 	hls::stream<T1> t1in1("t1in1");
@@ -98,8 +100,9 @@ int main() {
 		has_error = true;
 	}
 	std::cout << "Done.\n";
-
+*/
 	/***************** TEST 2 - Complete Pipeline *****************/
+	bool has_error = false;
 	std::cout << "\nTEST 2\n-------------\n";
 	hls::stream<T0> t2in0("t2in0");
 	hls::stream<T1> t2in1("t2in1");

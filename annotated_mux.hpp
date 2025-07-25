@@ -86,7 +86,7 @@ class AnnotatedMultiplex {
          * Insert the header at the most significant position in the output data frame.
          */
         template<typename T, size_t TW, typename H, size_t HW>
-        static TO with_header(TO content, H) {
+        static TO with_header(TO content, H header) {
             return content | (static_cast<TO>(header) << (TW-HW));
         }
 
@@ -173,6 +173,24 @@ class AnnotatedDemultiplex {
         }
 
     private:
+        /**
+         * Read the header data from an incoming data frame
+         */
+        template<typename T, size_t TW, size_t HW>
+        static ap_uint<HW> get_header(T incoming_data) {
+            return incoming_data >> (TW - HW);
+        }
+
+        /**
+         * Remove the header from the incoming data and only return the porperly cast contents
+         */
+        template<typename TO, typename TI, size_t TIW, size_t HW>
+        static TO remove_header(TI incoming_data) {
+            // Mask all lower bits until the header
+            TI mask = (static_cast<TI>(1) << (TIW-HW+1)) - 1;
+            return static_cast<TO>(incoming_data & mask);
+        }
+
         /** Actual implementation of the streamed annotated demultiplex */
         template<typename TI, size_t IN_WIDTH, typename ...TO>
         static void StreamingAnnotatedDeMultiplex_impl(hls::stream<TI> &src, hls::stream<TO> &...dst) {
@@ -180,11 +198,11 @@ class AnnotatedDemultiplex {
             constexpr unsigned int header_width = clog2(N);
             static_assert(header_width <= IN_WIDTH, "Cannot demultiplex. Too many streams to identify with the given incoming bitwidth!");
             static PackWriter<0, TO...> writer;
-            TI header;
-            TI content;
-            if (src.read_nb(header)) {
-                content = src.read();
-                writer.write((unsigned int) header, content, dst...);
+            TI frame;
+            if (src.read_nb(frame)) {
+                auto header = static_cast<unsigned int>(AnnotatedDemultiplex::get_header<TI, IN_WIDTH, header_width>(frame));
+                auto content = AnnotatedDemultiplex::remove_header<TI, TI, IN_WIDTH, header_width>(frame);
+                writer.write(header, content, dst...);
             } 
         }
 };
