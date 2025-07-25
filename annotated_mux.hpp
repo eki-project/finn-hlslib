@@ -26,8 +26,25 @@ enum class MultiplexStrategy {
 class AnnotatedMultiplex {
     public:
         /**
+         * Check if the output stream can hold both the header and the stream size itself
+         */
+        static constexpr bool enough_space(const size_t OUT_WIDTH, const size_t HEADER_WIDTH, size_t current_size) {
+            return (OUT_WIDTH >= (current_size + HEADER_WIDTH));
+        }
+
+        /**
+        * Given a total output width of a multiplexer and the widths of all input streams, calculate whether the
+        * output can, for any stream, keep both the header as well as the data itself in one frame
+        */
+        template<typename ...S>
+        static constexpr bool enough_space(const size_t OUT_WIDTH, const size_t HEADER_WIDTH, size_t current_size, S ...others) {
+            return (OUT_WIDTH >= (current_size + HEADER_WIDTH)) && enough_space(OUT_WIDTH, HEADER_WIDTH, others...);
+        }
+        /**
          * Using the given strategy, select one incoming data stream and put it to the destination stream. Before sending the data, send a single
          * frame containing the ID/index of the selected stream.  
+         * 
+         * \warning We cannot check that the output datawidth is large enough to support both the header and the data itself. This needs to be checked in FINN or with AnnotatedMultiplex::enough_space().
          * 
          * \tparam S The strategy to use when multiplexing
          * \tparam W The bitwidth of the output datatype (must be larger than log2(sizeof...(src)))
@@ -45,6 +62,8 @@ class AnnotatedMultiplex {
         /**
          * Using the given strategy, select one incoming data stream and put it to the destination stream. Before sending the data, send a single
          * frame containing the ID/index of the selected stream.  
+         * 
+         * \warning We cannot check that the output datawidth is large enough to support both the header and the data itself. This needs to be checked in FINN or with AnnotatedMultiplex::enough_space().
          * 
          * \tparam S The strategy to use when multiplexing
          * \tparam W The bitwidth of the output datatype (must be larger than log2(sizeof...(src)))
@@ -68,16 +87,19 @@ class AnnotatedMultiplex {
             static_assert(OUT_WIDTH >= header_width, "The output datawidth must be wide enough to represent the ID of every channel!");
 
             // TODO: Remove
-            static_assert(S == MultiplexStrategy::ROUND_ROBIN || S == MultiplexStrategy::ROUND_ROBIN_BLOCKING, "Other multiplex strategies than RR not supported yet!");
+            static_assert(S == MultiplexStrategy::ROUND_ROBIN, "Other multiplex strategies than RR not tested yet!");
 
             // Gets added to every transmission to identify the original sender
             static ap_uint<OUT_WIDTH> sel = 0;
             static PackReader<0, TI...> reader;
+            unsigned int count = 0;
+
+            #pragma HLS reset variable=sel
+            #pragma HLS reset variable=reader
 
             // Select next candidate based on the strategy chosen
             if (S == MultiplexStrategy::ROUND_ROBIN || S == MultiplexStrategy::ROUND_ROBIN_BLOCKING) {
                 bool can_read = false;
-                unsigned int count = 0;
                 TO content;
                 while(!can_read) {
                     can_read = reader.read_nb(sel, content, src...);

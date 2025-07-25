@@ -26,6 +26,16 @@ bool matches_expected(unsigned int iter, unsigned int total_iter, unsigned int s
 
 
 int main() {
+	/***************** TEST 0 - Test util functions *****************/
+	std::cout << "\nTEST 0\n-------------\n";
+	static_assert(AnnotatedMultiplex::enough_space(512, 64, 400, 100, 256));
+	static_assert(!AnnotatedMultiplex::enough_space(512, 64, 400, 500, 256));
+	static_assert(AnnotatedMultiplex::enough_space(10, 2, 8, 3, 1));
+	static_assert(!AnnotatedMultiplex::enough_space(10, 2, 9, 3, 1));
+	static_assert(AnnotatedMultiplex::enough_space(2, 1, 1, 1, 1));
+	static_assert(AnnotatedMultiplex::enough_space(1, 0, 0, 0, 0));
+	std::cout << "Done.\n";
+
 	/***************** TEST 1 - Only Mux *****************/
 	std::cout << "\nTEST 1\n-------------\n";
 	hls::stream<T0> t1in0("t1in0");
