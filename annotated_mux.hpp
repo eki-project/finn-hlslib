@@ -18,6 +18,9 @@ enum class MultiplexStrategy {
 // TODO: Currently inefficiently implemented, since every frame needs twice the frames now. Can be
 // improved via bit exact packing
 
+// TODO: Test with signed ints as well
+
+// TODO: Test edgecases
 
 /**
  * Provide kernels to multiplex data on some strategy with additional information provided.
@@ -79,6 +82,14 @@ class AnnotatedMultiplex {
         }
 
     private:
+        /**
+         * Insert the header at the most significant position in the output data frame.
+         */
+        template<typename T, size_t TW, typename H, size_t HW>
+        static TO with_header(TO content, H) {
+            return content | (static_cast<TO>(header) << (TW-HW));
+        }
+
         /** Actual implementation of the streamed annotated multiplex */
         template <typename TO, MultiplexStrategy S, size_t OUT_WIDTH, typename... TI>
         static void StreamingAnnotatedMultiplex_impl(hls::stream<TO> &dst, hls::stream<TI> &...src) {
@@ -90,7 +101,7 @@ class AnnotatedMultiplex {
             static_assert(S == MultiplexStrategy::ROUND_ROBIN, "Other multiplex strategies than RR not tested yet!");
 
             // Gets added to every transmission to identify the original sender
-            static ap_uint<OUT_WIDTH> sel = 0;
+            static ap_uint<header_width> sel = 0;
             static PackReader<0, TI...> reader;
             unsigned int count = 0;
 
@@ -111,7 +122,7 @@ class AnnotatedMultiplex {
 
                     // Write annotated data to dst 
                     if (can_read) {
-                        dst.write(sel);
+                        content = AnnotatedMultiplex::with_header<TO, OUT_WIDTH, decltype(sel), header_width>(content, sel);
                         dst.write(content);
                         sel = (sel + 1) % N;
                         return;
