@@ -82,11 +82,6 @@ class AnnotatedMultiplex {
                 while(!can_read) {
                     can_read = reader.read_nb(sel, content, src...);
 
-                    // If we arent blocking, move on regardless of whether the read was successful
-                    if (S == MultiplexStrategy::ROUND_ROBIN) {
-                        sel = (sel + 1) % N;
-                        count++;
-                    }
 
                     // Have searched the entire array of input streams and didnt find anything
                     if (count == N-1) {
@@ -97,10 +92,15 @@ class AnnotatedMultiplex {
                     if (can_read) {
                         dst.write(sel);
                         dst.write(content);
+                        sel = (sel + 1) % N;
                         return;
                     }
                     if (S == MultiplexStrategy::ROUND_ROBIN_BLOCKING) {
                         return;
+                    } else {
+                        // Case: Didnt find data, but are not blocking, so check next stream
+                        sel = (sel + 1) % N;
+                        count++;
                     }
                 }
             }
@@ -123,7 +123,7 @@ class AnnotatedDemultiplex {
         template <size_t W, typename ...TO >
         static void StreamingNetworkDeMultiplex(hls::stream<ap_uint<W>> &src, hls::stream<TO> &...dst) {
             // ap_uint public method
-            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_uint<W>, TO..., W>(src, dst...);
+            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_uint<W>, W, TO...>(src, dst...);
         }
 
         /**
@@ -137,12 +137,12 @@ class AnnotatedDemultiplex {
         template <size_t W, typename ...TO >
         static void StreamingNetworkDeMultiplex(hls::stream<ap_int<W>> &src, hls::stream<TO> &...dst) {
             // ap_int public method
-            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_int<W>, TO..., W>(src, dst...);
+            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_int<W>, W, TO...>(src, dst...);
         }
 
     private:
         /** Actual implementation of the streamed annotated demultiplex */
-        template<typename TI, typename ...TO, size_t IN_WIDTH>
+        template<typename TI, size_t IN_WIDTH, typename ...TO>
         static void StreamingAnnotatedDeMultiplex_impl(hls::stream<TI> &src, hls::stream<TO> &...dst) {
             constexpr unsigned int N = sizeof...(dst);
             constexpr unsigned int header_width = clog2(N);
@@ -152,7 +152,7 @@ class AnnotatedDemultiplex {
             TI content;
             if (src.read_nb(header)) {
                 content = src.read();
-                writer.write_nb((unsigned int) header, content, dst...);
+                writer.write((unsigned int) header, content, dst...);
             }
         }
 };

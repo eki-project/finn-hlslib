@@ -8,4 +8,9 @@ create_clock -period 5 -name default
 csim_design
 csynth_design
 cosim_design -trace_level all
+
+set_top Testbench_annotated_mux_rr_complete
+csim_design
+csynth_design
+cosim_design -trace_level all
 exit
