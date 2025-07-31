@@ -4,7 +4,6 @@
 #include "data/annotated_mux_config.h"
 #include "annotated_mux.hpp"
 
-void Testbench_annotated_mux_rr(hls::stream<T0> &in0, hls::stream<T1> &in1, hls::stream<T2> &in2, hls::stream<TO> &out);
 void Testbench_annotated_mux_rr_complete(hls::stream<T0> &in0, hls::stream<T1> &in1, hls::stream<T2> &in2, hls::stream<T0> &out0, hls::stream<T1> &out1, hls::stream<T2> &out2);
 
 template<typename T>
@@ -36,111 +35,51 @@ int main() {
 	static_assert(AnnotatedMultiplex::enough_space(1, 0, 0, 0, 0));
 	std::cout << "Done.\n";
 
-	/***************** TEST 1 - Only Mux *****************/
 
-	/*
+	/***************** TEST 1 - Complete Pipeline *****************/
+	bool has_error = false;
 	std::cout << "\nTEST 1\n-------------\n";
 	hls::stream<T0> t1in0("t1in0");
 	hls::stream<T1> t1in1("t1in1");
 	hls::stream<T2> t1in2("t1in2");
-	hls::stream<TO> t1out("t1out");
-	hls::stream<TO> t1expected("t1expected");
-
-	// First let all inputs have the same availability
+	hls::stream<T0> t1out0("t1out0");
+	hls::stream<T1> t1out1("t1out1");
+	hls::stream<T2> t1out2("t1out2");
+	hls::stream<T0> t1expected0("t1expected0");
+	hls::stream<T1> t1expected1("t1expected1");
+	hls::stream<T2> t1expected2("t1expected2");
+	
+	// Write the data into the input streams and multiplex as many times
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		t1in0.write((i+1)*2);
-		t1in1.write((i+1)*3);
-		t1in2.write((i+1)*4);
-		t1expected.write(0);
-		t1expected.write((i+1)*2);
-		t1expected.write(1);
-		t1expected.write((i+1)*3);
-		t1expected.write(2);
-		t1expected.write((i+1)*4);
+		t1in0.write((i+1)*2);	
+		t1in1.write((i+1)*3);	
+		t1in2.write((i+1)*4);	
+		t1expected0.write((i+1)*2);	
+		t1expected1.write((i+1)*3);	
+		t1expected2.write((i+1)*4);	
 	}
 
-	// Now only t1in0 sends
+	// Test that RR works properly by only sending into one stream
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
 		t1in0.write(99);
-		t1expected.write(0);
-		t1expected.write(99);
-	}
-
-	bool has_error = false;
-	unsigned int timeout = 20;
-	while (timeout > 0) {
-		TO header;
-		TO data;
-		Testbench_annotated_mux_rr(t1in0, t1in1, t1in2, t1out);
-		if (t1out.empty()) {
-			timeout--;
-			continue;
-		}
-		header = t1out.read();
-		data = t1out.read();
-		TO exp_header, exp_data;
-		exp_header = t1expected.read();
-		exp_data = t1expected.read();
-		if (exp_header != header) {
-			std::cout << "ERROR: Header mismatch. Expected " << exp_header << " but got " << header << std::endl;
-			has_error = true;
-		}
-		if (exp_data != data) {
-			std::cout << "ERROR: Data mismatch. Expected " << exp_data << " but got " << data << std::endl;
-			has_error = true;
-		}
-	}
-	if (!t1expected.empty()) {
-		std::cout << "ERROR: Expected stream still has leftover data. Leftover: " << t1expected.size() << std::endl;
-		t1expected.read();
-		has_error = true;
-	}
-	if (!t1out.empty()) {
-		std::cout << "ERROR: Out stream still has leftover data. Leftover: " << t1out.size() << std::endl;
-		has_error = true;
-	}
-	std::cout << "Done.\n";
-*/
-	/***************** TEST 2 - Complete Pipeline *****************/
-	bool has_error = false;
-	std::cout << "\nTEST 2\n-------------\n";
-	hls::stream<T0> t2in0("t2in0");
-	hls::stream<T1> t2in1("t2in1");
-	hls::stream<T2> t2in2("t2in2");
-	hls::stream<T0> t2out0("t2out0");
-	hls::stream<T1> t2out1("t2out1");
-	hls::stream<T2> t2out2("t2out2");
-	hls::stream<T0> t2expected0("t2expected0");
-	hls::stream<T1> t2expected1("t2expected1");
-	hls::stream<T2> t2expected2("t2expected2");
-	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		t2in0.write((i+1)*2);	
-		t2in1.write((i+1)*3);	
-		t2in2.write((i+1)*4);	
-		t2expected0.write((i+1)*2);	
-		t2expected1.write((i+1)*3);	
-		t2expected2.write((i+1)*4);	
-	}
-	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		t2in0.write(99);
-		t2expected0.write(99);
+		t1expected0.write(99);
 	}
 
 	// Call more times than necessary
 	for (unsigned int i = 0; i < REP_COUNT*5; i++) {
-		Testbench_annotated_mux_rr_complete(t2in0, t2in1, t2in2, t2out0, t2out1, t2out2);
+		Testbench_annotated_mux_rr_complete(t1in0, t1in1, t1in2, t1out0, t1out1, t1out2);
 	}
 	
-	T0 t2out, t2expected;
+	T0 t1out, t1expected;
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		has_error |= !matches_expected(i, REP_COUNT, 0, t2out0, t2expected0);
-		has_error |= !matches_expected(i, REP_COUNT, 1, t2out1, t2expected1);
-		has_error |= !matches_expected(i, REP_COUNT, 2, t2out2, t2expected2);
+		has_error |= !matches_expected(i, REP_COUNT, 0, t1out0, t1expected0);
+		has_error |= !matches_expected(i, REP_COUNT, 1, t1out1, t1expected1);
+		has_error |= !matches_expected(i, REP_COUNT, 2, t1out2, t1expected2);
 	}
 	
 	// Again for the case where only s0 received data
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
-		has_error |= !matches_expected(i, REP_COUNT, 0, t2out0, t2expected0);
+		has_error |= !matches_expected(i, REP_COUNT, 0, t1out0, t1expected0);
 	}
 	std::cout << "Done.\n\n";
 	return has_error;

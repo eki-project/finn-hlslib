@@ -15,12 +15,10 @@ enum class MultiplexStrategy {
 };
 
 
-// TODO: Currently inefficiently implemented, since every frame needs twice the frames now. Can be
-// improved via bit exact packing
-
 // TODO: Test with signed ints as well
-
 // TODO: Test edgecases
+
+// TODO: In the future implement data packing for more efficient use of the stream
 
 /**
  * Provide kernels to multiplex data on some strategy with additional information provided.
