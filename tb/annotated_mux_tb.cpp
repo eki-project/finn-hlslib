@@ -48,6 +48,7 @@ int main() {
 	hls::stream<T0> t1expected0("t1expected0");
 	hls::stream<T1> t1expected1("t1expected1");
 	hls::stream<T2> t1expected2("t1expected2");
+	unsigned int count = 0;
 	
 	// Write the data into the input streams and multiplex as many times
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
@@ -57,12 +58,14 @@ int main() {
 		t1expected0.write((i+1)*2);	
 		t1expected1.write((i+1)*3);	
 		t1expected2.write((i+1)*4);	
+		count += 3;
 	}
 
 	// Test that RR works properly by only sending into one stream
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
 		t1in0.write(99);
 		t1expected0.write(99);
+		count++;
 	}
 
 	// Call more times than necessary
@@ -75,12 +78,66 @@ int main() {
 		has_error |= !matches_expected(i, REP_COUNT, 0, t1out0, t1expected0);
 		has_error |= !matches_expected(i, REP_COUNT, 1, t1out1, t1expected1);
 		has_error |= !matches_expected(i, REP_COUNT, 2, t1out2, t1expected2);
+		count -= 3;
 	}
 	
 	// Again for the case where only s0 received data
 	for (unsigned int i = 0; i < REP_COUNT; i++) {
 		has_error |= !matches_expected(i, REP_COUNT, 0, t1out0, t1expected0);
+		count--;
+	}
+
+	if (count != 0 || t1expected0.size() != 0 || t1expected1.size() != 0 || t1expected2.size() != 0) {
+		has_error = true;
+		std::cout << "ERROR: Mismatch in transaction counts!" << std::endl;
 	}
 	std::cout << "Done.\n\n";
+	
+
+	/***************** TEST 2 - Complete Pipeline Irregular Pattern *****************/
+	std::cout << "TEST 2\n-------------\n";
+	for (unsigned int i = 0; i < REP_COUNT; i++) {
+		t1in0.write(1);
+		t1in0.write(1);
+		t1in1.write(2);
+		count += 3;
+		Testbench_annotated_mux_rr_complete(t1in0, t1in1, t1in2, t1out0, t1out1, t1out2);
+		if (i % 2 == 0) {
+			t1expected0.write(1);
+		} else {
+			t1expected1.write(2);
+		}
+	}
+
+	// Calculate how many elements each stream should contain
+	static_assert(REP_COUNT % 2 == 0, "Even REP_COUNT required for Test 2!");
+	auto o0_left = 2 * REP_COUNT - REP_COUNT / 2;
+	auto o1_left = REP_COUNT / 2;
+	for (unsigned int i = 0; i < REP_COUNT / 2; i++) {
+		has_error |= matches_expected(i, REP_COUNT/2, 0, t1out0, t1expected0);
+		has_error |= matches_expected(i, REP_COUNT/2, 0, t1out1, t1expected1);
+		count -= 2;
+	}
+	if (t1in0.size() != o0_left) {
+		std::cout << "ERROR: Stream 0 has " << t1in0.size() << " data left, expected " << o0_left << std::endl;
+		has_error = true;
+	}
+	if (t1in1.size() != o1_left) {
+		std::cout << "ERROR: Stream 1 has " << t1in1.size() << " data left, expected " << o1_left << std::endl;
+		has_error = true;
+	}
+	if (t1expected0.size() != 0 || t1expected1.size() != 0 || t1expected2.size() != 0 || count != (3-1)*REP_COUNT) {
+		std::cout << "ERROR: Transaction count mismatch!" << std::endl;
+		std::cout << "\t(" << t1expected0.size() << ", " << t1expected1.size() << ", " << t1expected2.size() << ", " << count << ")\n";
+		has_error = true;
+	}
+	std::cout << "Done.\n\n";
+
+	if (has_error) {
+		std::cout << "REP_COUNT: " << REP_COUNT << "\n" << std::endl;
+	}
+
+	// TODO: Clear leftover stream data
+
 	return has_error;
 }
