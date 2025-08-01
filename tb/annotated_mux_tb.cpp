@@ -5,6 +5,7 @@
 #include "annotated_mux.hpp"
 
 void Testbench_annotated_mux_rr_complete(hls::stream<T0> &in0, hls::stream<T1> &in1, hls::stream<T2> &in2, hls::stream<T0> &out0, hls::stream<T1> &out1, hls::stream<T2> &out2);
+void Testbench_annotated_mux_rr_complete_signed(hls::stream<T3> &in0, hls::stream<T4> &in1, hls::stream<T5> &in2, hls::stream<T3> &out0, hls::stream<T4> &out1, hls::stream<T5> &out2);
 
 template<typename T>
 bool matches_expected(unsigned int iter, unsigned int total_iter, unsigned int stream_index, hls::stream<T> &out, hls::stream<T> &expected) {
@@ -114,8 +115,8 @@ int main() {
 	auto o0_left = 2 * REP_COUNT - REP_COUNT / 2;
 	auto o1_left = REP_COUNT / 2;
 	for (unsigned int i = 0; i < REP_COUNT / 2; i++) {
-		has_error |= matches_expected(i, REP_COUNT/2, 0, t1out0, t1expected0);
-		has_error |= matches_expected(i, REP_COUNT/2, 0, t1out1, t1expected1);
+		has_error |= !matches_expected(i, REP_COUNT/2, 0, t1out0, t1expected0);
+		has_error |= !matches_expected(i, REP_COUNT/2, 1, t1out1, t1expected1);
 		count -= 2;
 	}
 	if (t1in0.size() != o0_left) {
@@ -131,13 +132,91 @@ int main() {
 		std::cout << "\t(" << t1expected0.size() << ", " << t1expected1.size() << ", " << t1expected2.size() << ", " << count << ")\n";
 		has_error = true;
 	}
+
+    // Clear the rest of the streams
+    for (unsigned int i = 0; i < o0_left + o1_left; i++) {
+		Testbench_annotated_mux_rr_complete(t1in0, t1in1, t1in2, t1out0, t1out1, t1out2);
+    }
+
+    // Check stream 0
+    for (unsigned int i = 0; i < o0_left; i++) {
+        t1expected0.write(1);
+		has_error |= !matches_expected(i, o0_left, 0, t1out0, t1expected0);
+        count--;
+    }
+
+    // Check stream 1
+    for (unsigned int i = 0; i < o1_left; i++) {
+        t1expected1.write(2);
+		has_error |= !matches_expected(i, o1_left, 1, t1out1, t1expected1);
+        count--;
+    }
+    
+    if (count != 0) {
+        std::cout << "ERROR: Transaction count mismatch!" << std::endl;
+        has_error = true;
+    }
 	std::cout << "Done.\n\n";
+
+
+	/***************** TEST 3 - Complete Pipeline Signed *****************/
+	std::cout << "TEST 3\n-------------\n";
+	hls::stream<T3> t3in0("t3in0");
+	hls::stream<T4> t3in1("t3in1");
+	hls::stream<T5> t3in2("t3in2");
+	hls::stream<T3> t3out0("t3out0");
+	hls::stream<T4> t3out1("t3out1");
+	hls::stream<T5> t3out2("t3out2");
+	hls::stream<T3> t3expected0("t3expected0");
+	hls::stream<T4> t3expected1("t3expected1");
+	hls::stream<T5> t3expected2("t3expected2");
+    //
+	// Write the data into the input streams and multiplex as many times
+	for (unsigned int i = 0; i < REP_COUNT; i++) {
+		t3in0.write((i+1)*2);	
+		t3in1.write((i+1)*3);	
+		t3in2.write((i+1)*4);	
+		t3expected0.write((i+1)*2);	
+		t3expected1.write((i+1)*3);	
+		t3expected2.write((i+1)*4);	
+		count += 3;
+	}
+
+	// Test that RR works properly by only sending into one stream
+	for (unsigned int i = 0; i < REP_COUNT; i++) {
+		t3in0.write(99);
+		t3expected0.write(99);
+		count++;
+	}
+
+	// Call more times than necessary
+	for (unsigned int i = 0; i < REP_COUNT*5; i++) {
+		Testbench_annotated_mux_rr_complete_signed(t3in0, t3in1, t3in2, t3out0, t3out1, t3out2);
+	}
+	
+	T0 t3out, t3expected;
+	for (unsigned int i = 0; i < REP_COUNT; i++) {
+		has_error |= !matches_expected(i, REP_COUNT, 0, t3out0, t3expected0);
+		has_error |= !matches_expected(i, REP_COUNT, 1, t3out1, t3expected1);
+		has_error |= !matches_expected(i, REP_COUNT, 2, t3out2, t3expected2);
+		count -= 3;
+	}
+	
+	// Again for the case where only s0 received data
+	for (unsigned int i = 0; i < REP_COUNT; i++) {
+		has_error |= !matches_expected(i, REP_COUNT, 0, t3out0, t3expected0);
+		count--;
+	}
+
+	if (count != 0 || t3expected0.size() != 0 || t3expected1.size() != 0 || t3expected2.size() != 0) {
+		has_error = true;
+		std::cout << "ERROR: Mismatch in transaction counts!" << std::endl;
+	}
+	std::cout << "Done.\n\n";
+
 
 	if (has_error) {
 		std::cout << "REP_COUNT: " << REP_COUNT << "\n" << std::endl;
 	}
-
-	// TODO: Clear leftover stream data
-
 	return has_error;
 }

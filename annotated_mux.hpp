@@ -17,8 +17,8 @@ enum class MultiplexStrategy {
 
 // TODO: Test with signed ints as well
 // TODO: Test edgecases
-
 // TODO: In the future implement data packing for more efficient use of the stream
+// TODO: Implement other strategies
 
 /**
  * Provide kernels to multiplex data on some strategy with additional information provided.
