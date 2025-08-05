@@ -84,8 +84,8 @@ class AnnotatedMultiplex {
          * Insert the header at the most significant position in the output data frame.
          */
         template<typename T, size_t TW, typename H, size_t HW>
-        static TO with_header(TO content, H header) {
-            return content | (static_cast<TO>(header) << (TW-HW));
+        static T with_header(T content, H header) {
+            return content | (static_cast<T>(header) << (TW-HW));
         }
 
         /** Actual implementation of the streamed annotated multiplex */
@@ -151,9 +151,9 @@ class AnnotatedDemultiplex {
          * \param ...dst The destination streams to demultiplex to. 
          */
         template <size_t W, typename ...TO >
-        static void StreamingNetworkDeMultiplex(hls::stream<ap_uint<W>> &src, hls::stream<TO> &...dst) {
+        static void StreamingNetworkDemultiplex(hls::stream<ap_uint<W>> &src, hls::stream<TO> &...dst) {
             // ap_uint public method
-            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_uint<W>, W, TO...>(src, dst...);
+            AnnotatedDemultiplex::StreamingAnnotatedDemultiplex_impl<ap_uint<W>, W, TO...>(src, dst...);
         }
 
         /**
@@ -165,9 +165,9 @@ class AnnotatedDemultiplex {
          * \param ...dst The destination streams to demultiplex to. 
          */
         template <size_t W, typename ...TO >
-        static void StreamingNetworkDeMultiplex(hls::stream<ap_int<W>> &src, hls::stream<TO> &...dst) {
+        static void StreamingNetworkDemultiplex(hls::stream<ap_int<W>> &src, hls::stream<TO> &...dst) {
             // ap_int public method
-            AnnotatedDemultiplex::StreamingAnnotatedDeMultiplex_impl<ap_int<W>, W, TO...>(src, dst...);
+            AnnotatedDemultiplex::StreamingAnnotatedDemultiplex_impl<ap_int<W>, W, TO...>(src, dst...);
         }
 
     private:
@@ -191,7 +191,7 @@ class AnnotatedDemultiplex {
 
         /** Actual implementation of the streamed annotated demultiplex */
         template<typename TI, size_t IN_WIDTH, typename ...TO>
-        static void StreamingAnnotatedDeMultiplex_impl(hls::stream<TI> &src, hls::stream<TO> &...dst) {
+        static void StreamingAnnotatedDemultiplex_impl(hls::stream<TI> &src, hls::stream<TO> &...dst) {
             constexpr unsigned int N = sizeof...(dst);
             constexpr unsigned int header_width = clog2(N);
             static_assert(header_width <= IN_WIDTH, "Cannot demultiplex. Too many streams to identify with the given incoming bitwidth!");
