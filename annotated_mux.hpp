@@ -92,7 +92,7 @@ class AnnotatedMultiplex {
         template <typename TO, MultiplexStrategy S, size_t OUT_WIDTH, typename... TI>
         static void StreamingAnnotatedMultiplex_impl(hls::stream<TO> &dst, hls::stream<TI> &...src) {
             constexpr unsigned int N = sizeof...(TI);
-            constexpr unsigned int header_width = clog2(N);
+            constexpr unsigned int header_width = N > 1 ? clog2(N) : 1;     // header_width needs to be > 0
             static_assert(OUT_WIDTH >= header_width, "The output datawidth must be wide enough to represent the ID of every channel!");
 
             // TODO: Remove
@@ -193,7 +193,7 @@ class AnnotatedDemultiplex {
         template<typename TI, size_t IN_WIDTH, typename ...TO>
         static void StreamingAnnotatedDemultiplex_impl(hls::stream<TI> &src, hls::stream<TO> &...dst) {
             constexpr unsigned int N = sizeof...(dst);
-            constexpr unsigned int header_width = clog2(N);
+            constexpr unsigned int header_width = N > 1 ? clog2(N) : 1; // header_width needs to be > 0
             static_assert(header_width <= IN_WIDTH, "Cannot demultiplex. Too many streams to identify with the given incoming bitwidth!");
             static PackWriter<0, TO...> writer;
             TI frame;
